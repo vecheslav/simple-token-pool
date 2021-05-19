@@ -53,21 +53,25 @@ pub fn swap(
     program_id: &Pubkey,
     pool: &Pubkey,
     pool_authority: &Pubkey,
+    user_transfer_authority: &Pubkey,
     token_program_id: &Pubkey,
     pool_mint: &Pubkey,
     bank_mint: &Pubkey,
     bank: &Pubkey,
     sender: &Pubkey,
+    recipient: &Pubkey,
     amount_in: u64,
 ) -> Result<Instruction, ProgramError> {
     let accounts = vec![
         AccountMeta::new_readonly(*pool, false),
         AccountMeta::new_readonly(*pool_authority, false),
+        AccountMeta::new_readonly(*user_transfer_authority, true),
         AccountMeta::new_readonly(*token_program_id, false),
         AccountMeta::new_readonly(*bank_mint, false),
         AccountMeta::new(*pool_mint, false),
         AccountMeta::new(*bank, false),
-        AccountMeta::new(*sender, true),
+        AccountMeta::new(*sender, false),
+        AccountMeta::new(*recipient, false),
     ];
 
     Ok(Instruction::new_with_borsh(

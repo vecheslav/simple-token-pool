@@ -136,7 +136,13 @@ fn command_create_pool(config: &Config, bank_mint_pubkey: &Pubkey) -> CommandRes
     Ok(Some(tx))
 }
 
-fn command_swap(config: &Config, pool_pubkey: &Pubkey, amount_in: u64) -> CommandResult {
+fn command_swap(
+    config: &Config,
+    pool_pubkey: &Pubkey,
+    sender: &Pubkey,
+    recipient: &Pubkey,
+    amount_in: u64,
+) -> CommandResult {
     let pool = config.rpc_client.get_account(&pool_pubkey)?;
     let pool_data = PoolData::try_from_slice(&pool.data)?;
 
@@ -150,11 +156,13 @@ fn command_swap(config: &Config, pool_pubkey: &Pubkey, amount_in: u64) -> Comman
             &simple_token_pool::id(),
             &pool_pubkey,
             &pool_authority,
+            &config.owner.pubkey(),
             &spl_token::id(),
             &pool_data.pool_mint,
             &pool_data.bank_mint,
             &pool_data.bank,
-            &config.owner.pubkey(),
+            &sender,
+            &recipient,
             amount_in,
         )?],
         Some(&config.fee_payer.pubkey()),
@@ -243,13 +251,22 @@ fn main() {
             SubCommand::with_name("swap")
                 .about("Swap to pool tokens")
                 .arg(
-                    Arg::with_name("pool")
+                    Arg::with_name("sender")
                         .validator(is_pubkey)
-                        .value_name("POOL")
+                        .value_name("SENDER")
                         .takes_value(true)
                         .required(true)
                         .index(1)
-                        .help("Pool public key."),
+                        .help("Sender token public key."),
+                )
+                .arg(
+                    Arg::with_name("recipient")
+                        .validator(is_pubkey)
+                        .value_name("RECIPIENT")
+                        .takes_value(true)
+                        .required(true)
+                        .index(2)
+                        .help("Recipient token public key."),
                 )
                 .arg(
                     Arg::with_name("amount_in")
@@ -257,8 +274,17 @@ fn main() {
                         .value_name("AMOUNT_IN")
                         .takes_value(true)
                         .required(true)
-                        .index(2)
+                        .index(3)
                         .help("Amount of tokens for swap."),
+                )
+                .arg(
+                    Arg::with_name("pool")
+                        .validator(is_pubkey)
+                        .value_name("POOL")
+                        .takes_value(true)
+                        .required(true)
+                        .index(4)
+                        .help("Pool public key."),
                 ),
         )
         .get_matches();
@@ -315,9 +341,11 @@ fn main() {
             command_create_pool(&config, &bank_mint)
         }
         ("swap", Some(arg_matches)) => {
-            let pool = pubkey_of(arg_matches, "pool").unwrap();
+            let sender = pubkey_of(arg_matches, "sender").unwrap();
+            let recipient = pubkey_of(arg_matches, "recipient").unwrap();
             let amount_in = value_of::<u64>(arg_matches, "amount_in").unwrap();
-            command_swap(&config, &pool, amount_in)
+            let pool = pubkey_of(arg_matches, "pool").unwrap();
+            command_swap(&config, &pool, &sender, &recipient, amount_in)
         }
         _ => unreachable!(),
     }

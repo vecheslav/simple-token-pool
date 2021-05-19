@@ -98,11 +98,13 @@ pub fn process_instruction(
 
             let pool_info = next_account_info(account_info_iter)?;
             let pool_authority_info = next_account_info(account_info_iter)?;
+            let user_transfer_authority_info = next_account_info(account_info_iter)?;
             let token_program_info = next_account_info(account_info_iter)?;
             let bank_mint_info = next_account_info(account_info_iter)?;
             let pool_mint_info = next_account_info(account_info_iter)?;
             let bank_info = next_account_info(account_info_iter)?;
             let sender_info = next_account_info(account_info_iter)?;
+            let recipient_info = next_account_info(account_info_iter)?;
 
             let pool_data = PoolData::try_from_slice(&pool_info.data.borrow())?;
 
@@ -121,26 +123,13 @@ pub fn process_instruction(
                 return Err(ProgramError::InvalidArgument);
             }
 
-            msg!(
-                "{:?}",
-                (
-                    pool_info.key,
-                    token_program_info.clone(),
-                    sender_info.clone(),
-                    bank_info.clone(),
-                    pool_authority_info.clone(),
-                    pool_data.bump_seed,
-                    amount_in
-                )
-            );
-
             // Transfer savings tokens from user
             spl_token_transfer(
                 pool_info.key,
                 token_program_info.clone(),
                 sender_info.clone(),
                 bank_info.clone(),
-                pool_authority_info.clone(),
+                user_transfer_authority_info.clone(),
                 pool_data.bump_seed,
                 amount_in,
             )?;
@@ -150,7 +139,7 @@ pub fn process_instruction(
                 pool_info.key,
                 token_program_info.clone(),
                 pool_mint_info.clone(),
-                sender_info.clone(),
+                recipient_info.clone(),
                 pool_authority_info.clone(),
                 pool_data.bump_seed,
                 amount_in * (PoolData::MINT_MULTIPLIER as u64),
