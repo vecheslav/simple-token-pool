@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use simple_token_pool::{find_authority_bump_seed, id, instruction, processor, state::PoolData};
 use solana_program::{
     borsh::get_packed_len, hash::Hash, program_pack::Pack, pubkey::Pubkey, system_instruction,
@@ -85,6 +87,14 @@ pub async fn get_account(banks_client: &mut BanksClient, pubkey: &Pubkey) -> Acc
         .expect("account empty")
 }
 
+pub async fn get_token_balance(banks_client: &mut BanksClient, token: &Pubkey) -> u64 {
+    let token_account = banks_client.get_account(*token).await.unwrap().unwrap();
+    let account_info: spl_token::state::Account =
+        spl_token::state::Account::unpack_from_slice(token_account.data.as_slice()).unwrap();
+
+    account_info.amount
+}
+
 pub async fn create_mint(
     banks_client: &mut BanksClient,
     payer: &Keypair,
@@ -142,25 +152,33 @@ pub async fn create_mint_without_initialize(
     Ok(())
 }
 
-pub async fn transfer(
+pub async fn mint_tokens(
     banks_client: &mut BanksClient,
     payer: &Keypair,
     recent_blockhash: &Hash,
-    recipient: &Pubkey,
+    mint: &Pubkey,
+    account: &Pubkey,
+    mint_authority: &Keypair,
     amount: u64,
-) {
+) -> Result<(), TransportError> {
     let tx = Transaction::new_signed_with_payer(
-        &[system_instruction::transfer(
-            &payer.pubkey(),
-            recipient,
+        &[spl_token::instruction::mint_to(
+            &spl_token::id(),
+            mint,
+            account,
+            &mint_authority.pubkey(),
+            &[],
             amount,
-        )],
+        )
+        .unwrap()],
         Some(&payer.pubkey()),
-        &[payer],
+        &[payer, mint_authority],
         *recent_blockhash,
     );
 
-    banks_client.process_transaction(tx).await.unwrap();
+    banks_client.process_transaction(tx).await?;
+
+    Ok(())
 }
 
 /// Create default spl token account and initialize
@@ -246,6 +264,69 @@ pub async fn create_pool_accounts(
     );
 
     tx.sign(&[payer, pool, pool_mint, bank], *recent_blockhash);
+    banks_client.process_transaction(tx).await?;
+
+    Ok(())
+}
+
+pub async fn create_accounts(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    pool_accounts: &PoolAccounts,
+) {
+    // Create token (incoming)
+    create_mint(
+        banks_client,
+        &payer,
+        &recent_blockhash,
+        &pool_accounts.bank_mint,
+        &pool_accounts.owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    // Pool accounts
+    create_pool_accounts(
+        banks_client,
+        payer,
+        recent_blockhash,
+        &pool_accounts.pool,
+        &pool_accounts.pool_mint,
+        &pool_accounts.bank,
+    )
+    .await
+    .unwrap();
+}
+
+pub async fn swap(
+    banks_client: &mut BanksClient,
+    payer: &Keypair,
+    recent_blockhash: &Hash,
+    sender: &Pubkey,
+    recipient: &Pubkey,
+    pool_accounts: &PoolAccounts,
+    amount: u64,
+) -> Result<(), TransportError> {
+    let (pool_authority, _) =
+        find_authority_bump_seed(&simple_token_pool::id(), &pool_accounts.pool.pubkey());
+
+    let mut tx = Transaction::new_with_payer(
+        &[instruction::swap(
+            &simple_token_pool::id(),
+            &pool_accounts.pool.pubkey(),
+            &pool_authority,
+            &pool_accounts.sender.pubkey(),
+            &pool_accounts.pool_mint.pubkey(),
+            &pool_accounts.bank.pubkey(),
+            &sender,
+            &recipient,
+            amount,
+        )],
+        Some(&payer.pubkey()),
+    );
+
+    tx.sign(&[payer, &pool_accounts.sender], *recent_blockhash);
     banks_client.process_transaction(tx).await?;
 
     Ok(())
