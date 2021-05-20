@@ -94,6 +94,9 @@ async fn success() {
 
     let new_sender_balance = get_token_balance(&mut banks_client, &token_sender).await;
     assert_eq!(new_sender_balance, SENDER_MINT_AMOUNT - 5000);
+
+    let new_recipient_balance = get_token_balance(&mut banks_client, &token_recipient).await;
+    assert_eq!(new_recipient_balance, 5000);
 }
 
 #[tokio::test]
