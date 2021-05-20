@@ -30,11 +30,11 @@ pub fn process_instruction(
 
             let pool_info = next_account_info(account_info_iter)?;
             let authority_info = next_account_info(account_info_iter)?;
-            let token_program_info = next_account_info(account_info_iter)?;
-            let rent_info = next_account_info(account_info_iter)?;
             let bank_mint_info = next_account_info(account_info_iter)?;
             let pool_mint_info = next_account_info(account_info_iter)?;
             let bank_info = next_account_info(account_info_iter)?;
+            let rent_info = next_account_info(account_info_iter)?;
+            // let token_program_info = next_account_info(account_info_iter)?;
 
             let rent = &Rent::from_account_info(rent_info)?;
 
@@ -67,7 +67,6 @@ pub fn process_instruction(
 
             // Initialize account for spl token
             spl_initialize_account(
-                token_program_info.clone(),
                 bank_info.clone(),
                 bank_mint_info.clone(),
                 authority_info.clone(),
@@ -76,7 +75,6 @@ pub fn process_instruction(
 
             // Initialize mint (token) for pool
             spl_initialize_mint(
-                token_program_info.clone(),
                 pool_mint_info.clone(),
                 authority_info.clone(),
                 rent_info.clone(),
@@ -85,7 +83,7 @@ pub fn process_instruction(
 
             pool_data.version = PoolData::CURRENT_VERSION;
             pool_data.authority = *authority_info.key;
-            pool_data.token_program_id = *token_program_info.key;
+            // pool_data.token_program_id = *token_program_info.key;
             pool_data.bank_mint = *bank_mint_info.key;
             pool_data.pool_mint = *pool_mint_info.key;
             pool_data.bank = *bank_info.key;
@@ -99,12 +97,11 @@ pub fn process_instruction(
             let pool_info = next_account_info(account_info_iter)?;
             let pool_authority_info = next_account_info(account_info_iter)?;
             let user_transfer_authority_info = next_account_info(account_info_iter)?;
-            let token_program_info = next_account_info(account_info_iter)?;
-            let bank_mint_info = next_account_info(account_info_iter)?;
             let pool_mint_info = next_account_info(account_info_iter)?;
             let bank_info = next_account_info(account_info_iter)?;
             let sender_info = next_account_info(account_info_iter)?;
             let recipient_info = next_account_info(account_info_iter)?;
+            // let token_program_info = next_account_info(account_info_iter)?;
 
             let pool_data = PoolData::try_from_slice(&pool_info.data.borrow())?;
 
@@ -115,18 +112,13 @@ pub fn process_instruction(
             // Check autority
             pool_data.check_authority(pool_authority_info.key, program_id, pool_info.key)?;
 
-            if pool_data.token_program_id != *token_program_info.key {
-                return Err(ProgramError::InvalidArgument);
-            }
-
-            if pool_data.bank_mint != *bank_mint_info.key {
+            if pool_data.bank != *bank_info.key {
                 return Err(ProgramError::InvalidArgument);
             }
 
             // Transfer savings tokens from user
             spl_token_transfer(
                 pool_info.key,
-                token_program_info.clone(),
                 sender_info.clone(),
                 bank_info.clone(),
                 user_transfer_authority_info.clone(),
@@ -137,7 +129,6 @@ pub fn process_instruction(
             // Mint pool tokens to user
             spl_token_mint_to(
                 pool_info.key,
-                token_program_info.clone(),
                 pool_mint_info.clone(),
                 recipient_info.clone(),
                 pool_authority_info.clone(),
@@ -152,45 +143,38 @@ pub fn process_instruction(
 
 /// Create a mint instruction.
 pub fn spl_initialize_mint<'a>(
-    token_program: AccountInfo<'a>,
     mint: AccountInfo<'a>,
     mint_authority: AccountInfo<'a>,
     rent: AccountInfo<'a>,
     decimals: u8,
 ) -> Result<(), ProgramError> {
     let ix = token::instruction::initialize_mint(
-        token_program.key,
+        &token::id(),
         mint.key,
         mint_authority.key,
         None,
         decimals,
     )?;
 
-    invoke(&ix, &[mint, rent, token_program])
+    invoke(&ix, &[mint, rent])
 }
 
 /// Create an accont instruction.
 pub fn spl_initialize_account<'a>(
-    token_program: AccountInfo<'a>,
     account: AccountInfo<'a>,
     mint: AccountInfo<'a>,
     authority: AccountInfo<'a>,
     rent: AccountInfo<'a>,
 ) -> Result<(), ProgramError> {
-    let ix = token::instruction::initialize_account(
-        token_program.key,
-        account.key,
-        mint.key,
-        authority.key,
-    )?;
+    let ix =
+        token::instruction::initialize_account(&token::id(), account.key, mint.key, authority.key)?;
 
-    invoke(&ix, &[account, mint, authority, rent, token_program])
+    invoke(&ix, &[account, mint, authority, rent])
 }
 
 /// Issue a transfer instruction.
 pub fn spl_token_transfer<'a>(
     pool: &Pubkey,
-    token_program: AccountInfo<'a>,
     source: AccountInfo<'a>,
     destination: AccountInfo<'a>,
     authority: AccountInfo<'a>,
@@ -201,7 +185,7 @@ pub fn spl_token_transfer<'a>(
     let signers = &[&authority_signature_seeds[..]];
 
     let ix = token::instruction::transfer(
-        token_program.key,
+        &token::id(),
         source.key,
         destination.key,
         authority.key,
@@ -209,17 +193,12 @@ pub fn spl_token_transfer<'a>(
         amount,
     )?;
 
-    invoke_signed(
-        &ix,
-        &[source, destination, authority, token_program],
-        signers,
-    )
+    invoke_signed(&ix, &[source, destination, authority], signers)
 }
 
 /// Issue a mint instruction.
 pub fn spl_token_mint_to<'a>(
     pool: &Pubkey,
-    token_program: AccountInfo<'a>,
     mint: AccountInfo<'a>,
     destination: AccountInfo<'a>,
     authority: AccountInfo<'a>,
@@ -230,7 +209,7 @@ pub fn spl_token_mint_to<'a>(
     let signers = &[&authority_signature_seeds[..]];
 
     let ix = token::instruction::mint_to(
-        token_program.key,
+        &token::id(),
         mint.key,
         destination.key,
         authority.key,
@@ -238,5 +217,5 @@ pub fn spl_token_mint_to<'a>(
         amount,
     )?;
 
-    invoke_signed(&ix, &[mint, destination, authority, token_program], signers)
+    invoke_signed(&ix, &[mint, destination, authority], signers)
 }

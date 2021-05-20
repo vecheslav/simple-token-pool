@@ -19,9 +19,6 @@ pub struct PoolData {
     /// Bump seed
     pub bump_seed: u8,
 
-    /// Program ID of the tokens
-    pub token_program_id: Pubkey,
-
     /// Mint for the tokens sent to the pool
     pub bank_mint: Pubkey,
 

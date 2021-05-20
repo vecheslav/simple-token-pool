@@ -5,8 +5,8 @@ authors = ["Vecheslav Druzhbin <vecheslavdruzhbin@gmail.com>"]
 edition = "2018"
 
 [features]
-test-bpf = []
 no-entrypoint = []
+test-bpf = []
 
 [dependencies]
 solana-program = "1.6.9"

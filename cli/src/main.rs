@@ -98,7 +98,7 @@ fn command_create_pool(config: &Config, bank_mint_pubkey: &Pubkey) -> CommandRes
                 &pool_mint.pubkey(),
                 pool_mint_balance,
                 token::state::Mint::LEN as u64,
-                &spl_token::id(),
+                &token::id(),
             ),
             // Account for the bank
             system_instruction::create_account(
@@ -106,18 +106,17 @@ fn command_create_pool(config: &Config, bank_mint_pubkey: &Pubkey) -> CommandRes
                 &bank.pubkey(),
                 bank_balance,
                 token::state::Account::LEN as u64,
-                &spl_token::id(),
+                &token::id(),
             ),
             // Initialize pool account
             initialize(
                 &simple_token_pool::id(),
                 &pool.pubkey(),
                 &authority,
-                &spl_token::id(),
                 &bank_mint_pubkey,
                 &pool_mint.pubkey(),
                 &bank.pubkey(),
-            )?,
+            ),
         ],
         Some(&config.fee_payer.pubkey()),
     );
@@ -141,7 +140,7 @@ fn command_swap(
     pool_pubkey: &Pubkey,
     sender: &Pubkey,
     recipient: &Pubkey,
-    amount_in: u64,
+    amount_in: f64,
 ) -> CommandResult {
     let pool = config.rpc_client.get_account(&pool_pubkey)?;
     let pool_data = PoolData::try_from_slice(&pool.data)?;
@@ -150,6 +149,10 @@ fn command_swap(
     println!("Amount: {}", amount_in);
 
     let (pool_authority, _) = find_authority_bump_seed(&simple_token_pool::id(), &pool_pubkey);
+    let bank_mint_account = config
+        .rpc_client
+        .get_token_account(&pool_data.bank)?
+        .ok_or_else(|| format!("Could not find token account {}", &pool_data.bank))?;
 
     let mut tx = Transaction::new_with_payer(
         &[swap(
@@ -157,14 +160,12 @@ fn command_swap(
             &pool_pubkey,
             &pool_authority,
             &config.owner.pubkey(),
-            &spl_token::id(),
             &pool_data.pool_mint,
-            &pool_data.bank_mint,
             &pool_data.bank,
             &sender,
             &recipient,
-            amount_in,
-        )?],
+            token::ui_amount_to_amount(amount_in, bank_mint_account.token_amount.decimals),
+        )],
         Some(&config.fee_payer.pubkey()),
     );
 
@@ -343,7 +344,7 @@ fn main() {
         ("swap", Some(arg_matches)) => {
             let sender = pubkey_of(arg_matches, "sender").unwrap();
             let recipient = pubkey_of(arg_matches, "recipient").unwrap();
-            let amount_in = value_of::<u64>(arg_matches, "amount_in").unwrap();
+            let amount_in = value_of::<f64>(arg_matches, "amount_in").unwrap();
             let pool = pubkey_of(arg_matches, "pool").unwrap();
             command_swap(&config, &pool, &sender, &recipient, amount_in)
         }
