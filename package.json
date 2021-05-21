@@ -1,0 +1,32 @@
+{
+  "name": "simple-token-pool",
+  "private": true,
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "g:rimraf": "cd $INIT_CWD && rimraf",
+    "g:tsc": "cd $INIT_CWD && tsc",
+    "build": "yarn workspace web run build",
+    "clean": "yarn cache clean && rm -rf node_modules",
+    "dev:web": "yarn workspace web run start",
+    "dev": "yarn dev:web"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.24.0",
+    "@typescript-eslint/parser": "^4.24.0",
+    "eslint": "^7.26.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-react": "^7.23.2",
+    "eslint-plugin-react-hooks": "^4.2.0",
+    "prettier": "^2.3.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.2.4"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}

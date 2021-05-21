@@ -34,7 +34,6 @@ pub fn process_instruction(
             let pool_mint_info = next_account_info(account_info_iter)?;
             let bank_info = next_account_info(account_info_iter)?;
             let rent_info = next_account_info(account_info_iter)?;
-            // let token_program_info = next_account_info(account_info_iter)?;
 
             let rent = &Rent::from_account_info(rent_info)?;
 
@@ -83,7 +82,6 @@ pub fn process_instruction(
 
             pool_data.version = PoolData::CURRENT_VERSION;
             pool_data.authority = *authority_info.key;
-            // pool_data.token_program_id = *token_program_info.key;
             pool_data.bank_mint = *bank_mint_info.key;
             pool_data.pool_mint = *pool_mint_info.key;
             pool_data.bank = *bank_info.key;
@@ -101,7 +99,6 @@ pub fn process_instruction(
             let bank_info = next_account_info(account_info_iter)?;
             let sender_info = next_account_info(account_info_iter)?;
             let recipient_info = next_account_info(account_info_iter)?;
-            // let token_program_info = next_account_info(account_info_iter)?;
 
             let pool_data = PoolData::try_from_slice(&pool_info.data.borrow())?;
 

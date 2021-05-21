@@ -12,7 +12,7 @@ mod entrypoint;
 pub use solana_program;
 use solana_program::pubkey::Pubkey;
 
-solana_program::declare_id!("BmYSsWxmkPFhp7ZLs9AaYrMSukTV6TxJfArt4hWHeNPF");
+solana_program::declare_id!("4fn9mVmVG4kLDi1iacUyGpbGUH9qrisNHHWd9PueJLiw");
 
 /// Generates seed bump for stake pool authorities
 pub fn find_authority_bump_seed(program_id: &Pubkey, pool: &Pubkey) -> (Pubkey, u8) {
